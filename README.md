@@ -23,13 +23,18 @@ analizzatore-turni/
 - **File filtering**: Automatically excludes temporary files (`~$...`) and underscore patterns (`XX_....docx`)
 - **Weekend extension**: Adds Saturday/Sunday when "Guardia" is assigned on Friday
 - **Multi-sheet output**: Creates 3 different views of the data
-- **Configurable employee name**: Search for specific employee in shift tables
+- **Command-line employee input**: Specify employee name as argument
 
-### Configuration:
-Before running the script, update the employee name to search for:
-```python
-# In extract_employee_shifts.py, line ~12
-EMPLOYEE_NAME = 'your_employee_name'  # Change this to the employee name you want to extract
+### Usage:
+```bash
+# Activate the conda environment
+mamba activate turni
+
+# Run the main script with employee name
+python extract_employee_shifts.py "employee_name"
+
+# Example:
+python extract_employee_shifts.py "John Doe"
 ```
 
 ### Output Excel File Structure:
@@ -37,14 +42,6 @@ EMPLOYEE_NAME = 'your_employee_name'  # Change this to the employee name you wan
 1. **"Tutti i Turni"** - Complete list of all shifts with dates
 2. **"Riepilogo per Turno"** - Summary count by shift type  
 3. **"Date per Turno"** - Horizontal view with dates grouped by shift type
-
-### Usage:
-```bash
-# Activate the conda environment
-mamba activate turni
-
-# Run the main script
-python extract_employee_shifts.py
 ```
 
 ## Testing Scripts

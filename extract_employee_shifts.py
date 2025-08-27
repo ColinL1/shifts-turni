@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from docx import Document
 from openpyxl import Workbook
 from datetime import datetime, timedelta
@@ -7,9 +8,6 @@ from datetime import datetime, timedelta
 # Folder containing the .docx files
 TURNI_FOLDER = 'turni'
 OUTPUT_XLSX = 'employee_shifts.xlsx'
-
-# Configure the employee name to search for in the documents
-EMPLOYEE_NAME = 'ostardo'  # Change this to the employee name you want to extract
 
 # Helper to extract date range from filename (e.g., '55. 11:11 - 15:11.docx')
 def extract_date_range_from_filename(filename):
@@ -61,7 +59,7 @@ def get_docx_files(folder):
     return files
 
 # Main extraction logic
-def extract_employee_shifts():
+def extract_employee_shifts(employee_name):
     results = []
     
     for filepath in get_docx_files(TURNI_FOLDER):
@@ -87,7 +85,7 @@ def extract_employee_shifts():
                 
                 for i, cell in enumerate(row.cells[1:]):
                     cell_text = cell.text.strip().lower()
-                    if EMPLOYEE_NAME.lower() in cell_text:
+                    if employee_name.lower() in cell_text:
                         # Skip "Assenti" entries
                         if 'assenti' in shift_type.lower():
                             continue
@@ -175,6 +173,21 @@ def write_to_xlsx(data, output_path):
     wb.save(output_path)
 
 if __name__ == '__main__':
-    shifts = extract_employee_shifts()
+    # Check if employee name is provided as command line argument
+    if len(sys.argv) != 2:
+        print("Usage: python extract_employee_shifts.py <employee_name>")
+        print("Example: python extract_employee_shifts.py 'John Doe'")
+        sys.exit(1)
+    
+    employee_name = sys.argv[1]
+    print(f"Extracting shifts for: {employee_name}")
+    
+    shifts = extract_employee_shifts(employee_name)
+    
+    if not shifts:
+        print(f"No shifts found for employee: {employee_name}")
+        print("Please check the employee name spelling and try again.")
+        sys.exit(1)
+    
     write_to_xlsx(shifts, OUTPUT_XLSX)
-    print(f'Saved employee shifts to {OUTPUT_XLSX}')
+    print(f'Saved {len(shifts)} shifts for {employee_name} to {OUTPUT_XLSX}')
