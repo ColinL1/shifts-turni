@@ -2,7 +2,7 @@ from openpyxl import load_workbook
 import csv
 
 # Read the Excel file and show all sheets
-wb = load_workbook('../ostardo_turni.xlsx')
+wb = load_workbook('../employee_shifts.xlsx')
 
 print("Excel file contains the following sheets:")
 for sheet_name in wb.sheetnames:

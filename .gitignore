@@ -152,8 +152,8 @@ $RECYCLE.BIN/
 *.tmp
 
 # Generated output files
-ostardo_turni.xlsx
-ostardo_turni_improved.csv
+employee_shifts.xlsx
+employee_shifts_improved.csv
 
 # Test outputs (keep scripts but ignore their outputs)
 tests/*.csv

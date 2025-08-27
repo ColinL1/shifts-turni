@@ -6,8 +6,8 @@ This tool extracts and analyzes work shifts from Italian Word documents (.docx) 
 
 ```
 analizzatore-turni/
-├── extract_ostardo_turni.py    # Main script to extract shifts
-├── ostardo_turni.xlsx          # Generated Excel report with 3 sheets
+├── extract_employee_shifts.py  # Main script to extract shifts
+├── employee_shifts.xlsx        # Generated Excel report with 3 sheets
 ├── turni/                      # Folder containing .docx shift documents
 └── tests/                      # Testing and utility scripts
     ├── view_all_sheets.py      # Display all Excel sheets content
@@ -16,13 +16,21 @@ analizzatore-turni/
     └── create_csv_output.py    # Convert Excel to CSV using pandas
 ```
 
-## Main Script: `extract_ostardo_turni.py`
+## Main Script: `extract_employee_shifts.py`
 
 ### Features:
 - **Date parsing**: Converts filenames like "55. 11:11 - 15:11.docx" to actual dates (Nov 11-15, 2024)
 - **File filtering**: Automatically excludes temporary files (`~$...`) and underscore patterns (`XX_....docx`)
 - **Weekend extension**: Adds Saturday/Sunday when "Guardia" is assigned on Friday
 - **Multi-sheet output**: Creates 3 different views of the data
+- **Configurable employee name**: Search for specific employee in shift tables
+
+### Configuration:
+Before running the script, update the employee name to search for:
+```python
+# In extract_employee_shifts.py, line ~12
+EMPLOYEE_NAME = 'your_employee_name'  # Change this to the employee name you want to extract
+```
 
 ### Output Excel File Structure:
 
@@ -36,7 +44,7 @@ analizzatore-turni/
 mamba activate turni
 
 # Run the main script
-python extract_ostardo_turni.py
+python extract_employee_shifts.py
 ```
 
 ## Testing Scripts
