@@ -155,8 +155,15 @@ $RECYCLE.BIN/
 employee_shifts.xlsx
 employee_shifts_improved.csv
 
+# Flask uploads and sessions
+uploads/
+instance/
+
 # Test outputs (keep scripts but ignore their outputs)
 tests/*.csv
 tests/*.xlsx
+
+# Archive folder for old files
+archive/
 
 turni/

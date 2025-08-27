@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Upload</title>
+</head>
+<body>
+    <h1>Test Upload Form</h1>
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+        <input type="text" name="employee_name" value="ostardo" required>
+        <input type="file" name="files" multiple accept=".docx" required>
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>

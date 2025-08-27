@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Upload</title>
+</head>
+<body>
+    <h1>Test Upload Form</h1>
+    
+    <!-- Simple form test -->
+    <form id="testForm">
+        <label for="employee_name">Employee Name:</label>
+        <input type="text" id="employee_name" name="employee_name" value="ostardo"><br><br>
+        
+        <label for="files">Files:</label>
+        <input type="file" id="files" name="files" multiple accept=".docx"><br><br>
+        
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        function submitForm() {
+            const form = document.getElementById('testForm');
+            const formData = new FormData(form);
+            
+            console.log('Submitting to /upload');
+            console.log('Employee name:', formData.get('employee_name'));
+            console.log('Files:', formData.getAll('files'));
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response OK:', response.ok);
+                return response.text();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                document.getElementById('result').innerHTML = '<pre>' + data + '</pre>';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = '<p style="color: red;">Error: ' + error + '</p>';
+            });
+        }
+    </script>
+</body>
+</html>
