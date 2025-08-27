@@ -15,9 +15,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
         }
         
@@ -26,8 +23,9 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             padding: 40px;
-            max-width: 600px;
+            max-width: 1200px;
             width: 100%;
+            margin: 0 auto;
         }
         
         .header {
@@ -45,9 +43,628 @@
             color: #666;
             font-size: 1.1em;
         }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            margin: 0 20px;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-number {
+            background: #667eea;
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-text {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .step.active .step-text {
+            color: #333;
+        }
+
+        /* Step 1: File Upload */
+        .upload-section {
+            text-align: center;
+        }
         
-        .form-group {
-            margin-bottom: 25px;
+        .drop-zone {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 60px 20px;
+            margin: 30px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f9f9f9;
+        }
+        
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        
+        .drop-zone i {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+        
+        .drop-zone h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+        
+        .drop-zone p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Step 2: Heatmap */
+        .heatmap-section {
+            display: none;
+        }
+
+        .heatmap-container {
+            margin: 30px 0;
+            overflow-x: auto;
+        }
+
+        .heatmap {
+            min-width: 800px;
+        }
+
+        .heatmap table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        .heatmap th,
+        .heatmap td {
+            padding: 8px 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .heatmap th {
+            background: #f8f9fa;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .heatmap td.employee-name {
+            background: #f8f9fa;
+            font-weight: 500;
+            text-align: left;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+
+        .heatmap-cell {
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            min-width: 40px;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Step 3: Employee Selection */
+        .employee-section {
+            display: none;
+            text-align: center;
+        }
+
+        .employee-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .employee-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .employee-card:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .employee-card.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .employee-name {
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .employee-stats {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .employee-card.selected .employee-stats {
+            color: #e9ecef;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 30px;
+            display: none;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            font-size: 2em;
+            color: #667eea;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        .back-btn:hover {
+            background: #5a6268;
+        }
+
+        .file-list {
+            text-align: left;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+
+        .file-item i {
+            color: #28a745;
+            margin-right: 10px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-calendar-check"></i> Employee Shifts Analyzer</h1>
+            <p>Upload shift documents to analyze employee schedules and generate reports</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step1-indicator">
+                <div class="step-number">1</div>
+                <div class="step-text">Upload Files</div>
+            </div>
+            <div class="step" id="step2-indicator">
+                <div class="step-number">2</div>
+                <div class="step-text">View Summary</div>
+            </div>
+            <div class="step" id="step3-indicator">
+                <div class="step-number">3</div>
+                <div class="step-text">Generate Report</div>
+            </div>
+        </div>
+
+        <!-- Step 1: File Upload -->
+        <div class="upload-section" id="step1">
+            <div class="drop-zone" id="dropZone">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Drop your .docx files here</h3>
+                <p>or click to browse and select multiple files</p>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".docx">
+            </div>
+            
+            <div class="file-list" id="fileList" style="display: none;">
+                <h4><i class="fas fa-file-alt"></i> Selected Files:</h4>
+                <div id="fileItems"></div>
+            </div>
+            
+            <button class="analyze-btn" id="analyzeBtn">
+                <i class="fas fa-chart-bar"></i> Analyze Files
+            </button>
+        </div>
+
+        <!-- Step 2: Heatmap -->
+        <div class="heatmap-section" id="step2">
+            <h2><i class="fas fa-chart-area"></i> Shift Summary Overview</h2>
+            <p>Overview of all employees and their shift types</p>
+            
+            <div class="heatmap-container">
+                <div class="heatmap" id="heatmapContainer">
+                    <!-- Heatmap will be populated here -->
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="back-btn" onclick="goToStep(1)">
+                    <i class="fas fa-arrow-left"></i> Back
+                </button>
+                <button class="analyze-btn" onclick="goToStep(3)">
+                    <i class="fas fa-user"></i> Select Employee
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Employee Selection -->
+        <div class="employee-section" id="step3">
+            <h2><i class="fas fa-users"></i> Select Employee for Detailed Report</h2>
+            <p>Click on an employee to generate their detailed shift report</p>
+            
+            <div class="employee-grid" id="employeeGrid">
+                <!-- Employee cards will be populated here -->
+            </div>
+            
+            <div style="text-align: center;">
+                <button class="back-btn" onclick="goToStep(2)">
+                    <i class="fas fa-arrow-left"></i> Back to Summary
+                </button>
+                <button class="download-btn" id="downloadBtn">
+                    <i class="fas fa-download"></i> Generate Report
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading indicator -->
+        <div class="loading" id="loading">
+            <i class="fas fa-spinner"></i>
+            <p>Processing...</p>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let sessionId = null;
+        let employeeData = {};
+        let selectedEmployee = null;
+
+        // Step navigation
+        function goToStep(step) {
+            // Hide all steps
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+            
+            // Update step indicators
+            ['step1-indicator', 'step2-indicator', 'step3-indicator'].forEach(id => {
+                document.getElementById(id).classList.remove('active', 'completed');
+            });
+            
+            // Show current step and update indicators
+            document.getElementById(`step${step}`).style.display = 'block';
+            document.getElementById(`step${step}-indicator`).classList.add('active');
+            
+            // Mark previous steps as completed
+            for (let i = 1; i < step; i++) {
+                document.getElementById(`step${i}-indicator`).classList.add('completed');
+            }
+            
+            currentStep = step;
+        }
+
+        // File upload handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const fileItems = document.getElementById('fileItems');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files).filter(file => file.name.endsWith('.docx'));
+            handleFiles(files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFiles(files);
+        });
+
+        function handleFiles(files) {
+            if (files.length === 0) return;
+            
+            fileItems.innerHTML = '';
+            files.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <i class="fas fa-file-word"></i>
+                    <span>${file.name}</span>
+                `;
+                fileItems.appendChild(fileItem);
+            });
+            
+            fileList.style.display = 'block';
+            analyzeBtn.style.display = 'inline-block';
+        }
+
+        // Analyze files
+        analyzeBtn.addEventListener('click', analyzeFiles);
+
+        async function analyzeFiles() {
+            const files = fileInput.files;
+            if (!files || files.length === 0) {
+                alert('Please select files first');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of files) {
+                formData.append('files', file);
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    sessionId = result.session_dir;
+                    employeeData = result.summary;
+                    displayHeatmap(employeeData);
+                    goToStep(2);
+                } else {
+                    alert(result.error || 'Analysis failed');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // Display heatmap
+        function displayHeatmap(data) {
+            const container = document.getElementById('heatmapContainer');
+            
+            // Get all unique shift types
+            const allShiftTypes = new Set();
+            Object.values(data).forEach(employee => {
+                Object.keys(employee).forEach(shift => allShiftTypes.add(shift));
+            });
+            const shiftTypes = Array.from(allShiftTypes).sort();
+            
+            // Create table
+            let html = '<table><thead><tr><th>Employee</th>';
+            shiftTypes.forEach(shift => {
+                html += `<th>${shift}</th>`;
+            });
+            html += '<th>Total</th></tr></thead><tbody>';
+            
+            // Sort employees by total shifts
+            const sortedEmployees = Object.entries(data).sort((a, b) => {
+                const totalA = Object.values(a[1]).reduce((sum, count) => sum + count, 0);
+                const totalB = Object.values(b[1]).reduce((sum, count) => sum + count, 0);
+                return totalB - totalA;
+            });
+            
+            sortedEmployees.forEach(([employee, shifts]) => {
+                html += `<tr><td class="employee-name">${employee}</td>`;
+                let total = 0;
+                
+                shiftTypes.forEach(shift => {
+                    const count = shifts[shift] || 0;
+                    total += count;
+                    const intensity = Math.min(count / 10, 1); // Normalize to 0-1
+                    const color = count === 0 ? '#f8f9fa' : 
+                                 `rgba(102, 126, 234, ${0.2 + intensity * 0.8})`;
+                    html += `<td><div class="heatmap-cell" style="background-color: ${color}; color: ${count === 0 ? '#666' : 'white'}">${count}</div></td>`;
+                });
+                
+                html += `<td><strong>${total}</strong></td></tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        // Navigate to employee selection and populate grid
+        function goToStep3() {
+            const employeeGrid = document.getElementById('employeeGrid');
+            employeeGrid.innerHTML = '';
+            
+            Object.entries(employeeData).forEach(([employee, shifts]) => {
+                const total = Object.values(shifts).reduce((sum, count) => sum + count, 0);
+                const shiftSummary = Object.entries(shifts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([shift, count]) => `${shift}: ${count}`)
+                    .join(', ');
+                
+                const card = document.createElement('div');
+                card.className = 'employee-card';
+                card.innerHTML = `
+                    <div class="employee-name">${employee}</div>
+                    <div class="employee-stats">
+                        Total shifts: ${total}<br>
+                        Top shifts: ${shiftSummary}
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => selectEmployee(employee, card));
+                employeeGrid.appendChild(card);
+            });
+            
+            goToStep(3);
+        }
+
+        // Override the step 3 navigation
+        document.querySelector('button[onclick="goToStep(3)"]').onclick = goToStep3;
+
+        function selectEmployee(employee, cardElement) {
+            // Remove previous selection
+            document.querySelectorAll('.employee-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Select current employee
+            cardElement.classList.add('selected');
+            selectedEmployee = employee;
+            document.getElementById('downloadBtn').style.display = 'inline-block';
+        }
+
+        // Generate report
+        document.getElementById('downloadBtn').addEventListener('click', generateReport);
+
+        async function generateReport() {
+            if (!selectedEmployee || !sessionId) {
+                alert('Please select an employee');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            
+            try {
+                const formData = new FormData();
+                formData.append('employee_name', selectedEmployee);
+                formData.append('session_id', sessionId);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Download the file
+                    window.location.href = result.download_url;
+                    
+                    // Clean up session after a delay
+                    setTimeout(() => {
+                        fetch(`/cleanup/${result.session_dir}`, { method: 'POST' });
+                    }, 5000);
+                } else {
+                    alert(result.error || 'Report generation failed');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
         }
         
         label {

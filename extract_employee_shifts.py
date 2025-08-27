@@ -9,14 +9,41 @@ from datetime import datetime, timedelta
 TURNI_FOLDER = 'turni'
 OUTPUT_XLSX = 'employee_shifts.xlsx'
 
-# Helper to extract date range from filename (e.g., '55. 11:11 - 15:11.docx')
+# Helper to extract date range from filename (e.g., '57. 25/11/24 - 29/11/24.docx' or '59. 09:12:24 - 13:12:24.docx' or '55. 11:11 - 15:11.docx')
 def extract_date_range_from_filename(filename):
-    # Match pattern like "11:11 - 15:11" where it's day:month format
+    # First try the new format with forward slashes: "25/11/24 - 29/11/24"
+    match = re.search(r'(\d{1,2})/(\d{1,2})/(\d{2,4})\s*-\s*(\d{1,2})/(\d{1,2})/(\d{2,4})', filename)
+    if match:
+        start_day, start_month, start_year, end_day, end_month, end_year = match.groups()
+        # Convert 2-digit years to 4-digit (24 -> 2024)
+        start_year = int(start_year)
+        end_year = int(end_year)
+        if start_year < 100:
+            start_year += 2000
+        if end_year < 100:
+            end_year += 2000
+        return int(start_day), int(start_month), int(end_day), int(end_month), start_year, end_year
+    
+    # Try format with colons and year: "09:12:24 - 13:12:24" (day:month:year)
+    match = re.search(r'(\d{1,2}):(\d{1,2}):(\d{2,4})\s*-\s*(\d{1,2}):(\d{1,2}):(\d{2,4})', filename)
+    if match:
+        start_day, start_month, start_year, end_day, end_month, end_year = match.groups()
+        # Convert 2-digit years to 4-digit (24 -> 2024, 25 -> 2025)
+        start_year = int(start_year)
+        end_year = int(end_year)
+        if start_year < 100:
+            start_year += 2000
+        if end_year < 100:
+            end_year += 2000
+        return int(start_day), int(start_month), int(end_day), int(end_month), start_year, end_year
+    
+    # Fall back to old format: "11:11 - 15:11" (day:month without year)
     match = re.search(r'(\d{1,2}):(\d{1,2})\s*-\s*(\d{1,2}):(\d{1,2})', filename)
     if match:
         start_day, start_month, end_day, end_month = match.groups()
-        return int(start_day), int(start_month), int(end_day), int(end_month)
-    return None, None, None, None
+        return int(start_day), int(start_month), int(end_day), int(end_month), None, None
+    
+    return None, None, None, None, None, None
 
 # Helper to get the year based on the month (November 2024 to 2025)
 def get_year_for_month(month):
@@ -28,9 +55,12 @@ def get_year_for_month(month):
         return 2025
 
 # Helper to get week dates from the date range
-def get_week_dates_from_range(start_day, start_month, end_day, end_month):
-    start_year = get_year_for_month(start_month)
-    end_year = get_year_for_month(end_month)
+def get_week_dates_from_range(start_day, start_month, end_day, end_month, start_year=None, end_year=None):
+    # Use provided years if available, otherwise use the old logic
+    if start_year is None:
+        start_year = get_year_for_month(start_month)
+    if end_year is None:
+        end_year = get_year_for_month(end_month)
     
     start_date = datetime(start_year, start_month, start_day)
     end_date = datetime(end_year, end_month, end_day)
@@ -67,12 +97,12 @@ def extract_employee_shifts(employee_name):
         filename = os.path.basename(filepath)
         
         # Extract date range from filename
-        start_day, start_month, end_day, end_month = extract_date_range_from_filename(filename)
+        start_day, start_month, end_day, end_month, start_year, end_year = extract_date_range_from_filename(filename)
         if not all([start_day, start_month, end_day, end_month]):
             continue
             
         # Get actual dates for this week
-        week_dates = get_week_dates_from_range(start_day, start_month, end_day, end_month)
+        week_dates = get_week_dates_from_range(start_day, start_month, end_day, end_month, start_year, end_year)
         
         # Find the table
         for table in doc.tables:
@@ -127,19 +157,22 @@ def extract_employee_shifts(employee_name):
 def write_to_xlsx(data, output_path):
     from collections import Counter
     
+    # Sort data by date (oldest to newest)
+    sorted_data = sorted(data, key=lambda x: x['Data'])
+    
     wb = Workbook()
     
-    # Sheet 1: All shifts
+    # Sheet 1: All shifts (sorted by date)
     ws1 = wb.active
     ws1.title = 'Tutti i Turni'
     headers = ['File', 'Data', 'Giorno', 'Turno']
     ws1.append(headers)
-    for row in data:
+    for row in sorted_data:
         ws1.append([row[h] for h in headers])
     
     # Sheet 2: Summary count by shift type
     ws2 = wb.create_sheet(title='Riepilogo per Turno')
-    shift_counts = Counter(row['Turno'] for row in data)
+    shift_counts = Counter(row['Turno'] for row in sorted_data)
     ws2.append(['Tipo di Turno', 'Numero di Volte'])
     for shift_type, count in sorted(shift_counts.items()):
         ws2.append([shift_type, count])
@@ -149,7 +182,7 @@ def write_to_xlsx(data, output_path):
     
     # Group data by shift type
     shifts_by_type = {}
-    for row in data:
+    for row in sorted_data:
         shift_type = row['Turno']
         if shift_type not in shifts_by_type:
             shifts_by_type[shift_type] = []
