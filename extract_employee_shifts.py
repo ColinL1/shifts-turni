@@ -77,6 +77,17 @@ def get_week_dates_from_range(start_day, start_month, end_day, end_month, start_
     
     return week_dates
 
+def add_days_to_date(date_str, days):
+    """Add days to a date string and return the new date string"""
+    if not date_str:
+        return ''
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        new_date = date_obj + timedelta(days=days)
+        return new_date.strftime('%Y-%m-%d')
+    except (ValueError, TypeError):
+        return ''
+
 # Helper to get all docx files in the folder
 def get_docx_files(folder):
     files = []

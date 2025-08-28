@@ -71,6 +71,12 @@ def analyze_files():
             shutil.rmtree(session_dir)
             return jsonify({'error': 'No valid .docx files uploaded'}), 400
         
+        # Save filename mapping for later use
+        mapping_file = os.path.join(session_dir, 'filename_mapping.txt')
+        with open(mapping_file, 'w', encoding='utf-8') as f:
+            for secure_name, original_name in filename_mapping.items():
+                f.write(f'{secure_name}:{original_name}\n')
+        
         # Analyze all employees and shifts
         summary_data = analyze_all_employees(session_dir, filename_mapping)
         
@@ -83,10 +89,117 @@ def analyze_files():
     except Exception as e:
         return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Generate individual employee report"""
+    try:
+        employee_name = request.form.get('employee_name')
+        session_id = request.form.get('session_id')
+        
+        if not employee_name or not session_id:
+            return jsonify({'error': 'Missing employee name or session ID'}), 400
+        
+        session_dir = os.path.join(UPLOAD_FOLDER, session_id)
+        
+        if not os.path.exists(session_dir):
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # Load filename mapping
+        mapping_file = os.path.join(session_dir, 'filename_mapping.txt')
+        filename_mapping = {}
+        
+        if os.path.exists(mapping_file):
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if ':' in line:
+                        temp_name, original_name = line.strip().split(':', 1)
+                        filename_mapping[temp_name] = original_name
+        else:
+            # If no mapping file, create one from current files
+            for secure_fname in os.listdir(session_dir):
+                if secure_fname.endswith('.docx'):
+                    filename_mapping[secure_fname] = secure_fname
+        
+        # Extract shifts for the specific employee
+        shifts = extract_with_mapping(employee_name, session_dir, filename_mapping)
+        
+        if not shifts:
+            return jsonify({'error': f'No shifts found for employee: {employee_name}'}), 404
+        
+        # Generate Excel file
+        output_file = os.path.join(session_dir, f'{employee_name}_shifts.xlsx')
+        extract_employee_shifts.write_to_xlsx(shifts, output_file)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Found {len(shifts)} shifts for {employee_name}',
+            'download_url': f'/download/{session_id}/{employee_name}_shifts.xlsx',
+            'session_dir': session_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
 def analyze_all_employees(session_dir, filename_mapping):
     """Analyze all employees and return summary data for heatmap"""
     employee_shifts = {}
+    all_employee_names = set()
     
+    # First pass: Extract all possible employee names to build a comprehensive list
+    for secure_fname in os.listdir(session_dir):
+        if not secure_fname.endswith('.docx'):
+            continue
+            
+        filepath = os.path.join(session_dir, secure_fname)
+        original_filename = filename_mapping.get(secure_fname, secure_fname)
+        
+        try:
+            doc = Document(filepath)
+            
+            # Find the table and extract all possible names
+            for table in doc.tables:
+                for row in table.rows[1:]:  # Skip header
+                    shift_type = row.cells[0].text.strip()
+                    
+                    # Skip "Assenti" entries
+                    if 'assenti' in shift_type.lower():
+                        continue
+                    
+                    for cell in row.cells[1:]:
+                        cell_text = cell.text.strip()
+                        if cell_text and not cell_text.isspace():
+                            # Extract all possible names (both comma-separated and from parentheses)
+                            # First, get names separated by commas/newlines
+                            base_names = [name.strip() for name in cell_text.replace('\n', ',').split(',') if name.strip()]
+                            
+                            for base_name in base_names:
+                                # Remove non-name parentheses content (like shifts, numbers, etc.)
+                                # but preserve potential employee names
+                                clean_base = re.sub(r'\([^)]*(?:turno|shift|ore|h|:|\d+)[^)]*\)', '', base_name, flags=re.IGNORECASE)
+                                
+                                # Extract main name (before parentheses)
+                                main_name = re.sub(r'\([^)]*\)', '', clean_base).strip()
+                                if main_name and len(main_name) > 1 and not is_roman_numeral(main_name):
+                                    all_employee_names.add(main_name)
+                                
+                                # Extract potential names from parentheses
+                                parentheses_matches = re.findall(r'\(([^)]+)\)', clean_base)
+                                for match in parentheses_matches:
+                                    potential_name = match.strip()
+                                    # Check if it looks like a name (not a number, time, or shift info)
+                                    if (potential_name and 
+                                        len(potential_name) > 1 and 
+                                        not re.match(r'^[\d:.-]+$', potential_name) and
+                                        not re.search(r'\b(?:turno|shift|ore|h)\b', potential_name, re.IGNORECASE)):
+                                        all_employee_names.add(potential_name)
+        
+        except Exception as e:
+            print(f"Error in first pass processing {original_filename}: {e}")
+            continue
+    
+    print(f"Found {len(all_employee_names)} unique employee names: {sorted(all_employee_names)}")
+    
+    # Second pass: Extract shifts using the comprehensive name list
     for secure_fname in os.listdir(session_dir):
         if not secure_fname.endswith('.docx'):
             continue
@@ -117,8 +230,8 @@ def analyze_all_employees(session_dir, filename_mapping):
                     for i, cell in enumerate(row.cells[1:]):
                         cell_text = cell.text.strip()
                         if cell_text and not cell_text.isspace():
-                            # Extract employee names from cell (could be multiple, separated by commas or newlines)
-                            employee_names = [name.strip() for name in cell_text.replace('\n', ',').split(',') if name.strip()]
+                            # Extract employee names using the comprehensive approach
+                            employee_names = extract_employee_names_from_cell(cell_text, all_employee_names)
                             
                             for employee_name in employee_names:
                                 if employee_name:
@@ -141,10 +254,114 @@ def analyze_all_employees(session_dir, filename_mapping):
     
     return employee_shifts
 
+def is_roman_numeral(text):
+    """Check if text is a Roman numeral in parentheses that should be ignored"""
+    if not text:
+        return False
+    
+    # Remove parentheses if present
+    clean_text = text.strip('()')
+    
+    # Check if it's a Roman numeral (I, II, III, IV, V, VI, VII, VIII, IX, X, etc.)
+    roman_pattern = r'^(I{1,3}|IV|V|VI{0,3}|IX|X{1,3}|XL|L|LX{0,3}|XC|C{1,3}|CD|D|DC{0,3}|CM|M{1,3})$'
+    return bool(re.match(roman_pattern, clean_text.upper()))
+
+def extract_employee_names_from_cell(cell_text, known_names):
+    """Extract employee names from a cell, considering both comma-separated and parentheses formats"""
+    employee_names = []
+    
+    # Split by commas and newlines first
+    base_parts = [part.strip() for part in cell_text.replace('\n', ',').split(',') if part.strip()]
+    
+    for part in base_parts:
+        # Remove non-name parentheses content (shifts, times, etc.)
+        cleaned_part = re.sub(r'\([^)]*(?:turno|shift|ore|h|:|\d+)[^)]*\)', '', part, flags=re.IGNORECASE)
+        
+        # Extract main name (before any parentheses)
+        main_name = re.sub(r'\([^)]*\)', '', cleaned_part).strip()
+        if main_name and main_name in known_names:
+            employee_names.append(main_name)
+        
+        # Check parentheses for additional employee names
+        parentheses_matches = re.findall(r'\(([^)]+)\)', cleaned_part)
+        for match in parentheses_matches:
+            potential_name = match.strip()
+            
+            # Skip Roman numerals
+            if is_roman_numeral(potential_name):
+                continue
+                
+            if potential_name in known_names:
+                employee_names.append(potential_name)
+            else:
+                # Check if it's a partial match (like "Di Bella" matching "Di Bella")
+                for known_name in known_names:
+                    if (potential_name.lower() in known_name.lower() or 
+                        known_name.lower() in potential_name.lower()) and len(potential_name) > 2:
+                        employee_names.append(known_name)
+                        break
+    
+    return list(set(employee_names))  # Remove duplicates
+
 def extract_with_mapping(employee_name, session_dir, filename_mapping):
     """Extract shifts for specific employee using filename mapping"""
     results = []
     
+    # First pass: Extract all employee names from all files
+    all_employee_names = set()
+    for secure_fname in os.listdir(session_dir):
+        if not secure_fname.endswith('.docx'):
+            continue
+            
+        filepath = os.path.join(session_dir, secure_fname)
+        
+        try:
+            doc = Document(filepath)
+            
+            # Find the table and extract all possible names
+            for table in doc.tables:
+                for row in table.rows[1:]:  # Skip header
+                    shift_type = row.cells[0].text.strip()
+                    
+                    # Skip "Assenti" entries
+                    if 'assenti' in shift_type.lower():
+                        continue
+                    
+                    for cell in row.cells[1:]:
+                        cell_text = cell.text.strip()
+                        if cell_text and not cell_text.isspace():
+                            # Simple extraction for building the name list
+                            base_names = [name.strip() for name in cell_text.replace('\n', ',').split(',') if name.strip()]
+                            
+                            for base_name in base_names:
+                                # Remove non-name parentheses content
+                                clean_base = re.sub(r'\([^)]*(?:turno|shift|ore|h|:|\d+)[^)]*\)', '', base_name, flags=re.IGNORECASE)
+                                
+                                # Extract main name
+                                main_name = re.sub(r'\([^)]*\)', '', clean_base).strip()
+                                if main_name and len(main_name) > 1 and not is_roman_numeral(main_name):
+                                    all_employee_names.add(main_name)
+                                
+                                # Extract potential names from parentheses
+                                parentheses_matches = re.findall(r'\(([^)]+)\)', clean_base)
+                                for match in parentheses_matches:
+                                    potential_name = match.strip()
+                                    
+                                    # Skip Roman numerals
+                                    if is_roman_numeral(potential_name):
+                                        continue
+                                        
+                                    if (potential_name and 
+                                        len(potential_name) > 1 and 
+                                        not re.match(r'^[\d:.-]+$', potential_name) and
+                                        not re.search(r'\b(?:turno|shift|ore|h)\b', potential_name, re.IGNORECASE)):
+                                        all_employee_names.add(potential_name)
+        
+        except Exception as e:
+            print(f"Error in name extraction for {secure_fname}: {e}")
+            continue
+    
+    # Second pass: Extract shifts for the specific employee
     for secure_fname in os.listdir(session_dir):
         if not secure_fname.endswith('.docx'):
             continue
@@ -172,39 +389,47 @@ def extract_with_mapping(employee_name, session_dir, filename_mapping):
                     shift_type = row.cells[0].text.strip()
                     
                     for i, cell in enumerate(row.cells[1:]):
-                        cell_text = cell.text.strip().lower()
-                        if employee_name.lower() in cell_text:
-                            if 'assenti' in shift_type.lower():
-                                continue
+                        cell_text = cell.text.strip()
+                        if cell_text and not cell_text.isspace():
+                            # Extract all possible names using the enhanced method
+                            employee_names = extract_employee_names_from_cell(cell_text, all_employee_names)
+                            
+                            # Check if our target employee is in this cell
+                            if employee_name in employee_names:
+                                if 'assenti' in shift_type.lower():
+                                    continue
+                                    
+                                day_name = days[i] if i < len(days) else f'Day{i+1}'
+                                date_str = week_dates[i] if i < len(week_dates) else ''
                                 
-                            day_name = days[i] if i < len(days) else f'Day{i+1}'
-                            date_str = week_dates[i] if i < len(week_dates) else ''
-                            
-                            results.append({
-                                'File': original_filename,
-                                'Data': date_str,
-                                'Giorno': day_name,
-                                'Turno': shift_type
-                            })
-                            
-                            # Weekend guardia logic
-                            if 'guardia' in shift_type.lower() and day_name.lower() == 'venerdì':
-                                if date_str:
-                                    from datetime import datetime, timedelta
-                                    saturday_date = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)
+                                results.append({
+                                    'File': original_filename,
+                                    'Data': date_str,
+                                    'Giorno': day_name,
+                                    'Turno': shift_type,
+                                    'Dipendente': employee_name
+                                })
+                                
+                                # Add weekend shifts for "Guardia" on Friday
+                                if 'guardia' in shift_type.lower() and day_name.lower() == 'venerdì':
+                                    # Add Saturday
+                                    saturday_date = extract_employee_shifts.add_days_to_date(date_str, 1) if date_str else ''
                                     results.append({
                                         'File': original_filename,
-                                        'Data': saturday_date.strftime('%Y-%m-%d'),
+                                        'Data': saturday_date,
                                         'Giorno': 'Sabato',
-                                        'Turno': shift_type
+                                        'Turno': shift_type,
+                                        'Dipendente': employee_name
                                     })
                                     
-                                    sunday_date = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=2)
+                                    # Add Sunday
+                                    sunday_date = extract_employee_shifts.add_days_to_date(date_str, 2) if date_str else ''
                                     results.append({
                                         'File': original_filename,
-                                        'Data': sunday_date.strftime('%Y-%m-%d'),
+                                        'Data': sunday_date,
                                         'Giorno': 'Domenica',
-                                        'Turno': shift_type
+                                        'Turno': shift_type,
+                                        'Dipendente': employee_name
                                     })
         
         except Exception as e:
@@ -212,55 +437,6 @@ def extract_with_mapping(employee_name, session_dir, filename_mapping):
             continue
     
     return results
-
-@app.route('/upload', methods=['POST'])
-def upload_files():
-    """Generate report for specific employee from previously analyzed data"""
-    try:
-        employee_name = request.form.get('employee_name', '').strip()
-        session_id = request.form.get('session_id', '').strip()
-        
-        if not employee_name:
-            return jsonify({'error': 'Employee name is required'}), 400
-        
-        if not session_id:
-            return jsonify({'error': 'Session ID is required'}), 400
-        
-        session_dir = os.path.join(UPLOAD_FOLDER, session_id)
-        
-        if not os.path.exists(session_dir):
-            return jsonify({'error': 'Session expired or invalid'}), 400
-        
-        # Reconstruct filename mapping
-        filename_mapping = {}
-        for fname in os.listdir(session_dir):
-            if fname.endswith('.docx'):
-                # Try to reconstruct original filename (this is a simplified approach)
-                # In a production system, you'd want to store the mapping
-                original = fname.replace('_', ' ').replace('.docx', '.docx')
-                # Add colons back for time format
-                original = re.sub(r'(\d+) (\d+) - (\d+) (\d+)', r'\1:\2 - \3:\4', original)
-                filename_mapping[fname] = original
-        
-        # Extract shifts using the existing logic
-        shifts = extract_with_mapping(employee_name, session_dir, filename_mapping)
-        
-        if not shifts:
-            return jsonify({'error': f'No shifts found for employee: {employee_name}'}), 404
-        
-        # Generate Excel file
-        output_file = os.path.join(session_dir, f'{employee_name}_shifts.xlsx')
-        extract_employee_shifts.write_to_xlsx(shifts, output_file)
-        
-        return jsonify({
-            'success': True,
-            'message': f'Found {len(shifts)} shifts for {employee_name}',
-            'download_url': f'/download/{session_id}/{employee_name}_shifts.xlsx',
-            'session_dir': session_id
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Upload failed: {str(e)}'}), 500
 
 @app.route('/download/<session_id>/<filename>')
 def download_file(session_id, filename):
