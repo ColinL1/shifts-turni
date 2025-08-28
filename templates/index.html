@@ -4,273 +4,278 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Employee Shifts Analyzer</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            padding: 40px;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-        }
-        
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        
-        .header h1 {
-            color: #333;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-        
-        .header p {
-            color: #666;
-            font-size: 1.1em;
-        }
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+    }
+    
+    .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        padding: 40px;
+        max-width: 1200px;
+        width: 100%;
+        margin: 0 auto;
+    }
+    
+    .header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .header h1 {
+        color: #333;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+    }
+    
+    .header p {
+        color: #666;
+        font-size: 1.1em;
+    }
 
-        .step-indicator {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 40px;
-            gap: 20px;
-        }
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 40px;
+        gap: 20px;
+    }
 
-        .step {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 20px;
-            border-radius: 25px;
-            background: #f8f9fa;
-            color: #6c757d;
-            transition: all 0.3s ease;
-        }
+    .step {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        border-radius: 25px;
+        background: #f8f9fa;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
 
-        .step-number {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            background: #dee2e6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #6c757d;
-        }
+    .step-number {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: #6c757d;
+    }
 
-        .step.active .step-number {
-            background: #667eea;
-            color: white;
-        }
+    .step.active .step-number {
+        background: #667eea;
+        color: white;
+    }
 
-        .step.completed .step-number {
-            background: #28a745;
-            color: white;
-        }
+    .step.completed .step-number {
+        background: #28a745;
+        color: white;
+    }
 
-        .step-text {
-            font-weight: 500;
-        }
+    .step-text {
+        font-weight: 500;
+    }
 
-        .step.active .step-text {
-            color: #667eea;
-        }
+    .step.active .step-text {
+        color: #667eea;
+    }
 
-        /* Step 1: File Upload */
-        .upload-section {
-            display: block;
-        }
-        
-        .drop-zone {
-            border: 3px dashed #e1e1e1;
-            border-radius: 15px;
-            padding: 60px 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            background: #fafafa;
-        }
-        
-        .drop-zone:hover,
-        .drop-zone.dragover {
-            border-color: #667eea;
-            background: #f0f2ff;
-        }
-        
-        .drop-zone i {
-            font-size: 4em;
-            color: #ccc;
-            margin-bottom: 20px;
-        }
-        
-        .drop-zone h3 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 1.5em;
-        }
-        
-        .drop-zone p {
-            color: #666;
-            font-size: 1.1em;
-        }
-        
-        .file-input {
-            display: none;
-        }
-        
-        .analyze-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            border-radius: 10px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 30px;
-            width: 100%;
-        }
-        
-        .analyze-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
+    /* Step 1: File Upload */
+    .upload-section {
+        display: block;
+    }
+    
+    .drop-zone {
+        border: 3px dashed #e1e1e1;
+        border-radius: 15px;
+        padding: 60px 20px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: #fafafa;
+    }
+    
+    .drop-zone:hover,
+    .drop-zone.dragover {
+        border-color: #667eea;
+        background: #f0f2ff;
+    }
+    
+    .drop-zone i {
+        font-size: 4em;
+        color: #ccc;
+        margin-bottom: 20px;
+    }
+    
+    .drop-zone h3 {
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 1.5em;
+    }
+    
+    .drop-zone p {
+        color: #666;
+        font-size: 1.1em;
+    }
+    
+    .file-input {
+        display: none;
+    }
+    
+    .analyze-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 15px 40px;
+        border-radius: 10px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 30px;
+        width: 100%;
+    }
+    
+    .analyze-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
 
-        .analyze-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
+    .analyze-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
 
-        .download-btn {
-            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            margin: 10px 0;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .download-btn {
+        background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin: 10px 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
 
-        .download-btn:hover {
-            background: linear-gradient(135deg, #00a085 0%, #00b7b3 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 184, 148, 0.3);
-        }
+    .download-btn:hover {
+        background: linear-gradient(135deg, #00a085 0%, #00b7b3 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 184, 148, 0.3);
+    }
 
-        .download-btn:disabled {
-            background: #ddd;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
+    .download-btn:disabled {
+        background: #ddd;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
 
-        /* Step 2: Heatmap */
-        .heatmap-section {
-            display: none;
-        }
+    /* Step 2: Heatmap */
+    .heatmap-section {
+        display: none;
+    }
 
-        .heatmap-container {
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
-        }
+    .heatmap-container {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
 
-        .heatmap {
-            overflow-x: auto;
-            position: relative;
-            max-width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-        }
+    .heatmap {
+        overflow-x: auto;
+        position: relative;
+        max-width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        /* Ensure hardware acceleration for better scrolling performance */
+        -webkit-overflow-scrolling: touch;
+        will-change: scroll-position;
+    }
 
-        .heatmap table {
-            border-collapse: separate;
-            border-spacing: 0;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            min-width: 1200px; /* Force horizontal scroll by making table wider */
-            width: max-content;
-        }
+    .heatmap table {
+        position: relative; /* fix for sticky */
+        border-collapse: separate;
+        border-spacing: 0;
+        background: white;
+        border-radius: 10px;
+        /* Remove overflow: hidden as it can interfere with sticky positioning */
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        min-width: 1200px;
+        width: max-content;
+        table-layout: fixed; /* Added for better column control */
+    }
 
-        /* Sticky first column (employee names) - Enhanced approach */
-        .heatmap table th:first-child,
-        .heatmap table td:first-child {
-            position: sticky !important;
-            left: 0 !important;
-            background: white !important;
-            z-index: 100 !important;
-            border-right: 3px solid #667eea !important;
-            box-shadow: 3px 0 10px rgba(0,0,0,0.15) !important;
-            min-width: 180px !important;
-            max-width: 220px !important;
-            font-weight: 600 !important;
-        }
-        
-        .heatmap table th:first-child {
-            background: #667eea !important;
-            color: white !important;
-            z-index: 101 !important;
-            font-weight: 700 !important;
-        }
+    /* Sticky first column - simplified and strengthened */
+    .heatmap th:first-child,
+    .heatmap td:first-child {
+        position: -webkit-sticky !important; /* For Safari */
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 2 !important;
+        min-width: 180px;
+        max-width: 220px;
+        font-weight: 600;
+        /* Add box-shadow for better visual separation */
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    }
 
-        .heatmap th,
-        .heatmap td {
-            padding: 12px 15px;
-            text-align: center;
-            border: 1px solid #e9ecef;
-            min-width: 120px; /* Make columns wider to force horizontal scroll */
-            white-space: nowrap;
-            position: relative;
-        }
+    .heatmap th:first-child {
+        background-color: #667eea !important;
+        color: white;
+        z-index: 3 !important; /* Higher z-index to stay on top */
+        font-weight: 700;
+    }
 
-        .heatmap th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
-            font-size: 0.9em;
-        }
+    .heatmap th,
+    .heatmap td {
+        padding: 12px 15px;
+        text-align: center;
+        border: 1px solid #e9ecef;
+        min-width: 120px;
+        white-space: nowrap;
+        position: relative;
+    }
 
-        .heatmap td.employee-name {
-            background: #f8f9fa;
-            font-weight: 600;
-            text-align: left;
-            color: #333;
-        }
+    .heatmap th {
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
 
-        .heatmap-cell {
-            min-width: 40px;
-            border-radius: 5px;
-            font-weight: bold;
-            color: white;
-            transition: all 0.3s ease;
-        }
+    .heatmap td.employee-name {
+        background-color: #f8f9fa !important;
+        font-weight: 600;
+        text-align: left;
+        color: #333;
+    }
+
+    .heatmap-cell {
+        min-width: 40px;
+        border-radius: 5px;
+        font-weight: bold;
+        color: white;
+        transition: all 0.3s ease;
+    }
 
         /* Step 3: Employee Selection */
         .employee-section {
@@ -550,6 +555,21 @@
 
         .heatmap table.sorted.loaded {
             opacity: 1;
+        }
+        
+        /* Ensure sticky column maintains styling during transitions */
+        .heatmap table.sorted th:first-child,
+        .heatmap table.sorted td:first-child,
+        .heatmap table.sorted.loaded th:first-child,
+        .heatmap table.sorted.loaded td:first-child {
+            position: -webkit-sticky;
+            position: sticky;
+            left: 0;
+        }
+        
+        /* Fix for hover state of sticky column cells */
+        .heatmap tr:hover td:first-child {
+            background-color: #eef2ff !important;
         }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -867,6 +887,48 @@
             
             // Update active filters display
             updateActiveFiltersDisplay();
+            
+            // Ensure sticky behavior is applied even after table is populated
+            setTimeout(() => {
+                ensureStickyColumn();
+            }, 200);
+        }
+        
+        // Function to ensure sticky column behavior with enhanced robustness
+        function ensureStickyColumn() {
+            const firstCells = document.querySelectorAll('.heatmap th:first-child, .heatmap td:first-child');
+            firstCells.forEach(cell => {
+                // Apply inline styles with !important to override any conflicting styles
+                cell.style.setProperty('position', 'sticky', 'important');
+                cell.style.setProperty('left', '0', 'important');
+                
+                if (cell.tagName === 'TH') {
+                    cell.style.setProperty('z-index', '3', 'important');
+                    cell.style.setProperty('background-color', '#667eea', 'important');
+                } else {
+                    cell.style.setProperty('z-index', '2', 'important');
+                    // Use the employee-name background color for consistency
+                    cell.style.setProperty('background-color', '#f8f9fa', 'important');
+                    
+                    // Add shadow for visual separation
+                    cell.style.setProperty('box-shadow', '2px 0 5px rgba(0,0,0,0.1)', 'important');
+                }
+            });
+            
+            // Add scroll event listener to handle sticky column during horizontal scrolling
+            const heatmapContainer = document.querySelector('.heatmap');
+            if (heatmapContainer) {
+                // Remove previous listener if any
+                heatmapContainer.onscroll = null;
+                
+                // Add new scroll listener
+                heatmapContainer.onscroll = function() {
+                    // This triggers a repaint which helps fix sticky column rendering issues
+                    firstCells.forEach(cell => {
+                        cell.style.setProperty('transform', 'translateZ(0)');
+                    });
+                };
+            }
         }
 
         // Create column menu HTML
@@ -1063,6 +1125,9 @@
             
             // Display the filtered and sorted heatmap
             displayHeatmap(filteredData);
+            
+            // Ensure sticky column behavior is maintained after filtering/sorting
+            setTimeout(ensureStickyColumn, 100);
         }
 
         // Update active filters display
@@ -1314,6 +1379,15 @@
                 downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Heatmap as PNG';
             }
         }
+        
+        // Add window resize handler to maintain sticky column behavior
+        window.addEventListener('resize', function() {
+            // Slight delay to let the layout stabilize
+            setTimeout(ensureStickyColumn, 100);
+        });
+        
+        // Call ensureStickyColumn on page load to initialize sticky behavior
+        window.addEventListener('load', ensureStickyColumn);
     </script>
 </body>
 </html>
