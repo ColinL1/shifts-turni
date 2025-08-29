@@ -2,6 +2,40 @@
 
 This tool extracts and analyzes work shifts from Italian Word documents (.docx) and creates comprehensive Excel reports.
 
+## Desktop (macOS) App
+
+A macOS standalone app can be built so non-technical users can just double‑click and use the interface without opening a browser.
+
+### Run as Desktop App (dev)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python webview_app.py
+```text
+
+This launches the Flask backend and opens a native window via `pywebview`.
+
+### Build a .app Bundle (py2app)
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install py2app
+python setup.py py2app -A   # alias mode (fast, for testing)
+python setup.py py2app      # create dist/Analizzatore Turni.app
+```
+
+Distribute the produced `dist/Analizzatore Turni.app` to users. On first run macOS Gatekeeper may warn; right‑click → Open to approve.
+
+Uploaded files & generated Excel outputs are stored in `~/ShiftsAnalyzerUploads` when packaged (avoids read‑only bundle paths). You can safely delete that folder to reset the app cache.
+
+If you add or change templates, rebuild the app so the new HTML files are included.
+
+---
+
 ## Project Structure
 
 ```

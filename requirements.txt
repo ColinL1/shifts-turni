@@ -2,3 +2,15 @@ python-docx==0.8.11
 openpyxl==3.1.2
 flask==2.3.3
 werkzeug==2.3.7
+pywebview==4.4.1
+pyobjc-framework-Cocoa; sys_platform == 'darwin'
+jaraco.text
+jaraco.functools
+jaraco.context
+jaraco.collections
+more-itertools
+packaging
+certifi
+pyobjc-core; sys_platform == 'darwin'
+pyobjc-framework-WebKit; sys_platform == 'darwin'
+Pillow

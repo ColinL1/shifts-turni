@@ -633,9 +633,11 @@
                 <div class="heatmap" id="heatmapContainer"></div>
                 
                 <!-- Download button (initially hidden) -->
-                <button class="download-btn" id="downloadHeatmapBtn" onclick="downloadHeatmapAsPNG()" style="display: none;">
-                    <i class="fas fa-download"></i> Download Heatmap as PNG
-                </button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="download-btn" id="downloadHeatmapBtn" onclick="downloadHeatmapAsPNG()" style="display: none;">
+                        <i class="fas fa-save"></i> Save Heatmap PNG to Downloads
+                    </button>
+                </div>
             </div>
             
             <button class="analyze-btn" onclick="goToStep(3)">
@@ -766,7 +768,8 @@
 
         async function analyzeFiles() {
             const files = fileInput.files;
-            if (files.length === 0) return;
+            console.log('analyzeFiles invoked with', files.length, 'files');
+            if (files.length === 0) { console.warn('No files selected'); return; }
 
             const formData = new FormData();
             for (let file of files) {
@@ -777,24 +780,32 @@
             document.getElementById('step1').style.display = 'none';
 
             try {
+                console.log('Sending /analyze request');
                 const response = await fetch('/analyze', {
                     method: 'POST',
                     body: formData
                 });
-
-                const data = await response.json();
+                console.log('Analyze response status', response.status);
+                const text = await response.text();
+                console.log('Raw analyze response text:', text.slice(0,500));
+                let data;
+                try { data = JSON.parse(text); } catch(parseErr){ console.error('JSON parse error', parseErr); alert('Analyze parse error'); goToStep(1); return; }
 
                 if (data.success) {
+                    console.log('Analyze success payload', data);
                     sessionId = data.session_dir;
                     employeeData = data.summary;
                     originalEmployeeData = JSON.parse(JSON.stringify(data.summary)); // Deep copy
+                    console.log('Employee data keys:', Object.keys(employeeData));
                     displayHeatmap(data.summary);
                     goToStep(2);
                 } else {
+                    console.error('Analyze error field', data.error);
                     alert('Error: ' + data.error);
                     goToStep(1);
                 }
             } catch (error) {
+                console.error('Analyze fetch exception', error);
                 alert('Error analyzing files: ' + error.message);
                 goToStep(1);
             } finally {
@@ -804,7 +815,12 @@
 
         // Display heatmap with interactive headers
         function displayHeatmap(data) {
+            console.log('displayHeatmap called with data', data);
             const container = document.getElementById('heatmapContainer');
+            if (!data || Object.keys(data).length === 0) {
+                container.innerHTML = '<p style="color:#c00; padding:20px;">No shift data extracted. Check that uploaded .docx files follow expected format.</p>';
+                return;
+            }
             
             // Get all unique shift types (excluding hidden ones)
             const allShiftTypes = new Set();
@@ -817,6 +833,12 @@
             });
             
             const shiftTypes = Array.from(allShiftTypes).sort();
+
+            // Ensure download buttons are visible after first render
+            const dlBtn = document.getElementById('downloadHeatmapBtn');
+            const svBtn = document.getElementById('saveServerHeatmapBtn');
+            if (dlBtn) dlBtn.style.display = 'inline-block';
+            if (svBtn) svBtn.style.display = 'inline-block';
             
             // Create table with interactive headers
             let html = '<table class="sorted"><thead><tr>';
@@ -1274,11 +1296,48 @@
                 console.log('Response data:', data);
 
                 if (data.success) {
-                    // Download the file
-                    window.open(data.download_url, '_blank');
+                    const absoluteUrl = data.download_url.startsWith('http') ? data.download_url : `${location.origin}${data.download_url}`;
+
+                    async function forceBlobDownload(url, filename) {
+                        try {
+                            const r = await fetch(url, {cache: 'no-store'});
+                            if (!r.ok) throw new Error('HTTP '+r.status);
+                            const blob = await r.blob();
+                            const objectUrl = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = objectUrl;
+                            a.download = filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            setTimeout(() => { URL.revokeObjectURL(objectUrl); a.remove(); }, 1500);
+                            return true;
+                        } catch (e) {
+                            console.error('forceBlobDownload failed', e);
+                            return false;
+                        }
+                    }
+
+                    // Try blob method first (most reliable inside pywebview)
+                    forceBlobDownload(absoluteUrl, `${selectedEmployee}_shifts.xlsx`).then(ok => {
+                        if (!ok) {
+                            const apiUrl = absoluteUrl.replace('/download/', '/api/download/');
+                            forceBlobDownload(apiUrl, `${selectedEmployee}_shifts.xlsx`).then(apiOk => {
+                                if (!apiOk) {
+                                    window.location.href = absoluteUrl;
+                                    setTimeout(() => {
+                                        fetch(absoluteUrl, { method: 'HEAD' }).then(r => {
+                                            if (!r.ok) {
+                                                window.open(absoluteUrl, '_blank');
+                                            }
+                                        }).catch(()=>window.open(absoluteUrl, '_blank'));
+                                    }, 1200);
+                                }
+                            });
+                        }
+                    });
                     
                     // Optional: Show success message
-                    alert(`Report generated successfully! Found ${data.message.split(' ')[1]} shifts for ${selectedEmployee}.`);
+                    alert(`Report generated successfully! ${data.message}. Saved to${data.saved_path}`);
                 } else {
                     alert('Error generating report: ' + data.error);
                 }
@@ -1292,92 +1351,151 @@
 
         // Function to download heatmap as PNG
         async function downloadHeatmapAsPNG() {
-            const heatmapContainer = document.getElementById('heatmapContainer');
+            // Repurpose client button to call server save silently (no navigation)
             const downloadBtn = document.getElementById('downloadHeatmapBtn');
-            
-            if (!heatmapContainer || !heatmapContainer.innerHTML.trim()) {
-                alert('No heatmap to download. Please analyze files first.');
+            const serverBtn = document.getElementById('saveServerHeatmapBtn');
+            if(!employeeData || Object.keys(employeeData).length===0){
+                alert('No heatmap data yet. Run analysis first.');
                 return;
             }
-
-            // Disable button and show loading state
-            downloadBtn.disabled = true;
-            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PNG...';
-
+            downloadBtn.disabled = true; if(serverBtn) serverBtn.disabled = true;
+            const original = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving PNG...';
             try {
-                // Get the table element
-                const table = heatmapContainer.querySelector('table');
-                if (!table) {
-                    throw new Error('No table found in heatmap');
+                const res = await fetch('/api/heatmap_save', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ summary: employeeData })
+                });
+                const data = await res.json();
+                if(res.ok && data.success){
+                    alert('Heatmap saved to: ' + data.saved_path);
+                } else {
+                    alert('Save failed: ' + (data.error || res.status));
                 }
-
-                // Create a temporary container for capturing
-                const tempContainer = document.createElement('div');
-                tempContainer.style.position = 'absolute';
-                tempContainer.style.left = '-9999px';
-                tempContainer.style.top = '-9999px';
-                tempContainer.style.width = 'auto';
-                tempContainer.style.height = 'auto';
-                tempContainer.style.overflow = 'visible';
-                tempContainer.style.background = 'white';
-                tempContainer.style.padding = '20px';
-                
-                // Clone the table
-                const tableClone = table.cloneNode(true);
-                
-                // Remove sticky positioning from the clone
-                const allCells = tableClone.querySelectorAll('th, td');
-                allCells.forEach(cell => {
-                    cell.style.position = 'static';
-                    cell.style.left = 'auto';
-                    cell.style.zIndex = 'auto';
-                    cell.style.boxShadow = 'none';
-                });
-                
-                // Style the cloned table for better PNG output
-                tableClone.style.borderCollapse = 'collapse';
-                tableClone.style.width = 'auto';
-                tableClone.style.minWidth = 'auto';
-                tableClone.style.fontSize = '14px';
-                
-                tempContainer.appendChild(tableClone);
-                document.body.appendChild(tempContainer);
-
-                // Wait for layout
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Capture the temporary container
-                const canvas = await html2canvas(tempContainer, {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                    allowTaint: false,
-                    width: tempContainer.scrollWidth + 40,
-                    height: tempContainer.scrollHeight + 40
-                });
-
-                // Clean up
-                document.body.removeChild(tempContainer);
-
-                // Create download link
-                const link = document.createElement('a');
-                link.download = `shifts-heatmap-${new Date().toISOString().split('T')[0]}.png`;
-                link.href = canvas.toDataURL('image/png');
-                
-                // Trigger download
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
-            } catch (error) {
-                console.error('Error generating PNG:', error);
-                alert('Error generating PNG: ' + error.message);
+            } catch(err){
+                console.error('Server save error', err);
+                alert('Error: ' + err.message);
             } finally {
-                // Reset button
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download Heatmap as PNG';
+                downloadBtn.disabled = false; if(serverBtn) serverBtn.disabled = false;
+                downloadBtn.innerHTML = original;
             }
+        }
+
+        // Server-side save (no navigation) using /api/heatmap_save
+        async function saveServerHeatmapPNG(){
+            const btn = document.getElementById('saveServerHeatmapBtn');
+            const downloadBtn = document.getElementById('downloadHeatmapBtn');
+            if(!employeeData || Object.keys(employeeData).length===0){
+                alert('No data yet. Analyze files first.');
+                return;
+            }
+            btn.disabled = true; if(downloadBtn) downloadBtn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving PNG...';
+            try{
+                const res = await fetch('/api/heatmap_save', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ summary: employeeData })
+                });
+                const data = await res.json();
+                if(res.ok && data.success){
+                    alert('Saved heatmap to: ' + data.saved_path);
+                } else {
+                    alert('Server save failed: ' + (data.error || res.status));
+                }
+            }catch(err){
+                console.error('Server save error', err);
+                alert('Error: ' + err.message);
+            } finally {
+                btn.disabled = false; if(downloadBtn) downloadBtn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        }
+
+        // Manual table -> PNG renderer (no external libs)
+        function manualRenderTableToPNG(table) {
+            const rows = Array.from(table.querySelectorAll('tr'));
+            if (!rows.length) throw new Error('Empty table');
+            const ctxInfoRow = rows[0];
+            const colCount = ctxInfoRow.children.length;
+            const colWidths = [];
+            // Compute widths based on live table
+            rows[0].querySelectorAll('th,td').forEach(cell => {
+                colWidths.push(cell.getBoundingClientRect().width || 120);
+            });
+            const rowHeights = rows.map(r => r.getBoundingClientRect().height || 32);
+            const paddingX = 12; const paddingY = 8;
+            const totalWidth = colWidths.reduce((a,b)=>a+b,0) + 2;
+            const totalHeight = rowHeights.reduce((a,b)=>a+b,0) + 2;
+            const scale = 2;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.floor(totalWidth*scale);
+            canvas.height = Math.floor(totalHeight*scale);
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale,scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0,0,totalWidth,totalHeight);
+            ctx.font = '14px "Segoe UI", Arial, sans-serif';
+            ctx.textBaseline = 'middle';
+            let y=1;
+            rows.forEach((row,rowIdx)=>{
+                let x=1; const cells = Array.from(row.children);
+                cells.forEach((cell,colIdx)=>{
+                    const w = colWidths[colIdx];
+                    const h = rowHeights[rowIdx];
+                    // Background
+                    let bg = window.getComputedStyle(cell).backgroundColor;
+                    if (!bg || bg==='rgba(0, 0, 0, 0)' || bg==='transparent') bg = rowIdx===0? '#667eea':'#ffffff';
+                    ctx.fillStyle = bg;
+                    ctx.fillRect(x,y,w,h);
+                    // Text
+                    let text = cell.textContent.trim();
+                    ctx.fillStyle = (rowIdx===0)? '#ffffff':'#333333';
+                    if (/rgba?\((\d+), (\d+), (\d+), ([0-9.]+)\)/.test(bg)) {
+                        // If dark background lighten text
+                        try {
+                            const m = bg.match(/rgba?\(([^)]+)\)/)[1].split(',').map(v=>parseFloat(v));
+                            const lum = 0.2126*m[0]+0.7152*m[1]+0.0722*m[2];
+                            if (lum<128) ctx.fillStyle = '#ffffff';
+                        } catch(e){}
+                    }
+                    const cellText = text;
+                    // Simple clipping
+                    const maxWidth = w - paddingX*2;
+                    let display = cellText;
+                    while (ctx.measureText(display).width > maxWidth && display.length>3) {
+                        display = display.slice(0,-2);
+                    }
+                    if (display !== cellText) display += '…';
+                    ctx.fillText(display, x+paddingX, y + h/2);
+                    // Border
+                    ctx.strokeStyle = '#e0e0e0';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x,y,w,h);
+                    x += w;
+                });
+                y += rowHeights[rowIdx];
+            });
+            const saveName = `shifts-heatmap-${new Date().toISOString().split('T')[0]}-fallback.png`;
+            if (canvas.toBlob) {
+                canvas.toBlob(blob => {
+                    const objectUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = objectUrl;
+                    a.download = saveName;
+                    document.body.appendChild(a); a.click();
+                    setTimeout(()=>{URL.revokeObjectURL(objectUrl); a.remove();}, 1500);
+                }, 'image/png', 0.92);
+            } else {
+                const dataURL = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = dataURL;
+                a.download = saveName;
+                document.body.appendChild(a); a.click(); a.remove();
+            }
+            alert('PNG generated (fallback renderer).');
         }
         
         // Add window resize handler to maintain sticky column behavior
