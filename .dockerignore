@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+.Python
+python.env
+.env
+.git
+.gitignore
+uploads/*
+!uploads/.gitkeep
+build/
+build-env/
+*.xlsx
+*.docx

@@ -1,0 +1,36 @@
+version: '3.9'
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_UID: 1001  # Host UID (adjust if different: run `id -u`)
+        APP_GID: 100   # Host GID (adjust if different: run `id -g`)
+    image: shifts-turni:latest
+    container_name: shifts-turni-web
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+    #   interval: 30s
+    #   timeout: 5s
+    #   retries: 3
+    # labels:
+    #   - "swag.enable=true" # Informational only; SWAG doesn't auto-read labels
+    networks:
+      - swag_net
+    user: "1001:100"  # Uncomment to force runtime UID/GID if needed
+    # Development override example (uncomment to use Flask reloader):
+    # command: flask run --host=0.0.0.0 --port=5000
+    # environment:
+    #   FLASK_APP: app.py
+    #   FLASK_DEBUG: "1"
+
+networks:
+  swag_net:
+    external: true
+    name: swag_net
