@@ -7,8 +7,18 @@ import shutil
 from docx import Document
 import re
 
+# ---------------------------------------------------------------------------
+# Application factory / configuration
+# ---------------------------------------------------------------------------
+# Notes for deployment inside containers:
+# - SECRET_KEY should be provided via environment variable in production.
+# - DEBUG is toggled via FLASK_DEBUG=1 (docker-compose can set it for dev).
+# - PORT can be overridden with PORT env (default 5000) for platforms like Heroku / Render.
+# ---------------------------------------------------------------------------
+
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Change this in production
+# Use environment variable (fallback ONLY for local/dev). Replace default before real prod.
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-insecure-change-me')
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -463,4 +473,8 @@ def cleanup_session(session_id):
         return jsonify({'error': f'Cleanup failed: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    # Local/dev execution path (container uses gunicorn via wsgi:app)
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    port = int(os.environ.get('PORT', '5000'))
+    host = os.environ.get('HOST', '0.0.0.0')
+    app.run(debug=debug, host=host, port=port)

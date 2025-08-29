@@ -1,9 +1,11 @@
 import os
 import re
 import sys
+import time
+from datetime import datetime, timedelta
 from docx import Document
 from openpyxl import Workbook
-from datetime import datetime, timedelta
+from typing import Dict, Any, List, Tuple
 
 # Folder containing the .docx files
 TURNI_FOLDER = 'turni'
@@ -88,81 +90,114 @@ def add_days_to_date(date_str, days):
     except (ValueError, TypeError):
         return ''
 
-# Helper to get all docx files in the folder
-def get_docx_files(folder):
-    files = []
-    for f in os.listdir(folder):
-        if f.endswith('.docx') and not f.startswith('~$'):  # Skip temporary Word files
-            # Skip files that start with pattern like "90_." (number + underscore + dot)
-            if re.match(r'^\d+_\.', f):
-                continue
-            files.append(os.path.join(folder, f))
+############################
+# Performance Helpers
+############################
+
+def get_docx_files(folder: str) -> List[str]:
+    """Fast directory scan using scandir."""
+    files: List[str] = []
+    try:
+        with os.scandir(folder) as it:
+            for entry in it:
+                if not entry.is_file():
+                    continue
+                name = entry.name
+                if name.endswith('.docx') and not name.startswith('~$') and not re.match(r'^\d+_\.', name):
+                    files.append(entry.path)
+    except FileNotFoundError:
+        return []
     return files
 
+# Simple in-process cache: { filepath: { 'mtime': float, 'parsed': <Document>, 'tables': preprocessed } }
+DOCX_CACHE: Dict[str, Dict[str, Any]] = {}
+
+def _preprocess_tables(doc: Document) -> List[Tuple[List[str], List[List[str]]]]:
+    """Return a lightweight representation of each table: (header_cells, row_cells_matrix)."""
+    rep = []
+    for table in doc.tables:
+        try:
+            if not table.rows:
+                continue
+            header = [c.text.strip() for c in table.rows[0].cells]
+            body = []
+            for row in table.rows[1:]:
+                body.append([c.text.strip() for c in row.cells])
+            rep.append((header, body))
+        except Exception:
+            continue
+    return rep
+
+def load_doc_cached(filepath: str) -> Dict[str, Any]:
+    """Load a docx file with caching based on mtime."""
+    try:
+        mtime = os.path.getmtime(filepath)
+    except FileNotFoundError:
+        return {}
+    cached = DOCX_CACHE.get(filepath)
+    if cached and cached.get('mtime') == mtime:
+        return cached
+    # (Re)load
+    doc = Document(filepath)
+    data = {
+        'mtime': mtime,
+        'tables': _preprocess_tables(doc)
+    }
+    DOCX_CACHE[filepath] = data
+    return data
+
 # Main extraction logic
-def extract_employee_shifts(employee_name):
-    results = []
-    
-    for filepath in get_docx_files(TURNI_FOLDER):
-        doc = Document(filepath)
+def extract_employee_shifts(employee_name: str):
+    """Extract shifts for an employee with caching and minimal re-parsing."""
+    t0 = time.time()
+    target_lc = employee_name.lower()
+    results: List[Dict[str, str]] = []
+    files = get_docx_files(TURNI_FOLDER)
+    for filepath in files:
         filename = os.path.basename(filepath)
-        
         # Extract date range from filename
         start_day, start_month, end_day, end_month, start_year, end_year = extract_date_range_from_filename(filename)
         if not all([start_day, start_month, end_day, end_month]):
             continue
-            
-        # Get actual dates for this week
         week_dates = get_week_dates_from_range(start_day, start_month, end_day, end_month, start_year, end_year)
-        
-        # Find the table
-        for table in doc.tables:
-            # Assume first column is shift type, first row is days
-            headers = [cell.text.strip() for cell in table.rows[0].cells]
-            days = headers[1:]  # skip first column (type)
-            
-            for row in table.rows[1:]:
-                shift_type = row.cells[0].text.strip()
-                
-                for i, cell in enumerate(row.cells[1:]):
-                    cell_text = cell.text.strip().lower()
-                    if employee_name.lower() in cell_text:
-                        # Skip "Assenti" entries
+        data = load_doc_cached(filepath)
+        tables = data.get('tables', [])
+        for header, body in tables:
+            if not header:
+                continue
+            days = header[1:]
+            for row in body:
+                if not row:
+                    continue
+                shift_type = row[0].strip()
+                # Skip rows with no employee cells
+                for i, cell_text in enumerate(row[1:]):
+                    cell_norm = cell_text.lower()
+                    if target_lc in cell_norm:
                         if 'assenti' in shift_type.lower():
                             continue
-                            
-                        # Get the day name and corresponding date
                         day_name = days[i] if i < len(days) else f'Day{i+1}'
                         date_str = week_dates[i] if i < len(week_dates) else ''
-                        
-                        results.append({
+                        result_entry = {
                             'File': filename,
                             'Data': date_str,
                             'Giorno': day_name,
                             'Turno': shift_type
-                        })
-                        
-                        # If it's "Guardia" on Friday, add Saturday and Sunday too
-                        if 'guardia' in shift_type.lower() and day_name.lower() == 'venerdì':
-                            # Add Saturday
-                            if date_str:
-                                saturday_date = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=1)
+                        }
+                        results.append(result_entry)
+                        if 'guardia' in shift_type.lower() and day_name.lower() == 'venerdì' and date_str:
+                            base_dt = datetime.strptime(date_str, '%Y-%m-%d')
+                            for add_days, extra_day in [(1, 'Sabato'), (2, 'Domenica')]:
+                                extra_dt = base_dt + timedelta(days=add_days)
                                 results.append({
                                     'File': filename,
-                                    'Data': saturday_date.strftime('%Y-%m-%d'),
-                                    'Giorno': 'Sabato',
+                                    'Data': extra_dt.strftime('%Y-%m-%d'),
+                                    'Giorno': extra_day,
                                     'Turno': shift_type
                                 })
-                                
-                                # Add Sunday
-                                sunday_date = datetime.strptime(date_str, '%Y-%m-%d') + timedelta(days=2)
-                                results.append({
-                                    'File': filename,
-                                    'Data': sunday_date.strftime('%Y-%m-%d'),
-                                    'Giorno': 'Domenica',
-                                    'Turno': shift_type
-                                })
-    
+    elapsed = (time.time() - t0) * 1000
+    # Lightweight performance log to stdout (captured by docker logs)
+    print(f"[perf] extract_employee_shifts employee='{employee_name}' files={len(files)} results={len(results)} time_ms={elapsed:.1f}")
     return results
 
 def write_to_xlsx(data, output_path):
