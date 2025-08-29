@@ -38,6 +38,67 @@ Uncomment the `command` and related `environment` lines in `docker-compose.yml` 
 
 ---
 
+## Run Locally (mamba / conda + python)
+
+If you prefer not to use Docker, you can run the app directly in a Python environment.
+
+### 1. Create & activate environment (mamba recommended)
+
+```bash
+mamba create -n shifts-turni python=3.13 -y
+mamba activate shifts-turni
+```
+
+Or with conda:
+
+```bash
+conda create -n shifts-turni python=3.13 -y
+conda activate shifts-turni
+```
+
+### 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Set environment variables (at minimum SECRET_KEY)
+
+macOS / Linux (zsh/bash):
+```bash
+export SECRET_KEY="replace-with-strong-value"
+export FLASK_DEBUG=1   # optional for auto-reload
+export PORT=5000       # optional override
+```
+
+Windows PowerShell:
+```powershell
+$Env:SECRET_KEY = "replace-with-strong-value"
+$Env:FLASK_DEBUG = "1"
+```
+
+### 4. Run the application
+
+Direct (uses `app.py`):
+```bash
+python app.py
+```
+
+Or with Flask CLI (enable debug reloader):
+```bash
+FLASK_DEBUG=1 flask run --host=0.0.0.0 --port=5000
+```
+
+Then open <http://localhost:5000>
+
+### 5. (Optional) Run extraction script directly
+
+```bash
+python extract_employee_shifts.py "Employee Name"
+```
+
+---
+
 ## Project Structure
 
 ```text
